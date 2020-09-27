@@ -1,14 +1,27 @@
 cmake_minimum_required(VERSION 3.10)
 
-# set the project name
-project(tests)
+project(unit_tests)
 
 find_package(GTest REQUIRED)
 
-#file(GLOB src/*.cxx)
-include(GoogleTest)
-add_executable(${PROJECT_NAME} unit_test.cxx base_test.h)
-target_link_libraries(${PROJECT_NAME} GTest::Main queues_lib benchmark::benchmark)
+add_executable(
+        ${PROJECT_NAME}
+        unit_tests.cxx
+        test_common.h
+)
+target_link_libraries(
+        ${PROJECT_NAME}
+        GTest::Main
+        multi_queue_lib
+        benchmark::benchmark)
 
-add_executable(${PROJECT_NAME}_bench bench.cxx)
-target_link_libraries(${PROJECT_NAME}_bench queues_lib benchmark::benchmark)
+add_executable(
+        benchmarks
+        benchmarks.cxx
+)
+
+target_link_libraries(
+        benchmarks
+        multi_queue_lib
+        benchmark::benchmark
+)
