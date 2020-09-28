@@ -3,34 +3,43 @@
 #include "test_common.h"
 #include <benchmark/benchmark.h>
 
-enum{
+enum
+{
   BENCH_ENQUEUE_COUNT = 4000,
   BENCH_CONSUMER_COUNT = 4,
-  BENCH_PRODUCER_COUNT = 6
+  BENCH_PRODUCER_COUNT = 8
 };
 
-template <bool PRODUCE_IN_THREAD = false>
-static void multi_queue_one_thread_producer_new(benchmark::State& state) {
+template<bool PRODUCE_IN_THREAD = false>
+static void
+multi_queue_one_thread_producer_new(benchmark::State& state)
+{
   for (auto _ : state) {
-    test_broadcast<MultiQueue<int, std::pair<int, int>>, PRODUCE_IN_THREAD, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT,BENCH_PRODUCER_COUNT);
+    test_broadcast<MultiQueue<int, std::pair<int, int>>, PRODUCE_IN_THREAD, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
   }
 }
 
-static void multi_queue_one_thread_producer_old(benchmark::State& state) {
+static void
+multi_queue_one_thread_producer_old(benchmark::State& state)
+{
   for (auto _ : state) {
-    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, false, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT,BENCH_PRODUCER_COUNT);
+    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, false, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
   }
 }
 
-static void multi_queue_multi_thread_producer_new(benchmark::State& state) {
+static void
+multi_queue_multi_thread_producer_new(benchmark::State& state)
+{
   for (auto _ : state) {
-    test_broadcast<MultiQueue<int, std::pair<int, int>>, true, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT,BENCH_PRODUCER_COUNT);
+    test_broadcast<MultiQueue<int, std::pair<int, int>>, true, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
   }
 }
 
-static void multi_queue_multi_thread_producer_old(benchmark::State& state) {
+static void
+multi_queue_multi_thread_producer_old(benchmark::State& state)
+{
   for (auto _ : state) {
-    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, true, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT,BENCH_PRODUCER_COUNT);
+    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, true, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
   }
 }
 

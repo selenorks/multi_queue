@@ -15,7 +15,7 @@ TEST(Queue, OneThreadProducer)
 
 TEST(Queue, MultiThreadProducer)
 {
-  test_broadcast<MultiQueue<int, std::pair<int, int>>, true, true>();
+  test_broadcast<MultiQueue<int, std::pair<int, int>>, true, true>(400, 4, 6);
 }
 
 class QueueWorkerTest : public testing::TestWithParam<::std::tuple<int, int, int>>
@@ -34,7 +34,7 @@ TEST_P(QueueWorkerTest, QueueOverflow)
   std::unique_ptr<WORKER> processor;
   std::vector<std::pair<int, int>> data;
   int final_score;
-  prepare<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
+  prepare_data<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
 
   auto consumers = create_consumers(consumer_count, final_score);
 
@@ -65,7 +65,7 @@ TEST(Subscribing, OneByOne)
   std::unique_ptr<WORKER> processor;
   std::vector<std::pair<int, int>> data;
   int final_score;
-  prepare<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
+  prepare_data<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
 
   auto consumers = create_consumers(consumer_count, final_score);
 
@@ -89,16 +89,16 @@ TEST(Subscribing, ByGroups)
   typedef MultiQueue<int, std::pair<int, int>> WORKER;
   int enqueue_count = 300;
 
-  int group_count =4;
+  int group_count = 4;
   int group_size = 3;
-  int consumer_count = group_count*group_size;
+  int consumer_count = group_count * group_size;
 
   int producer_count = 10;
 
   std::unique_ptr<WORKER> processor;
   std::vector<std::pair<int, int>> data;
   int final_score;
-  prepare<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
+  prepare_data<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
 
   auto consumers = create_consumers(consumer_count, final_score);
 
@@ -130,16 +130,16 @@ TEST(Unsubscribe, ByGroups)
   typedef MultiQueue<int, std::pair<int, int>> WORKER;
   int enqueue_count = 300;
 
-  int group_count =4;
+  int group_count = 4;
   int group_size = 3;
-  int consumer_count = group_count*group_size;
+  int consumer_count = group_count * group_size;
 
   int producer_count = 10;
 
   std::unique_ptr<WORKER> processor;
   std::vector<std::pair<int, int>> data;
   int final_score;
-  prepare<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
+  prepare_data<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
 
   auto consumers = create_consumers(consumer_count, final_score);
 
@@ -147,7 +147,7 @@ TEST(Unsubscribe, ByGroups)
 
   producer_thread<WORKER>(std::ref(*processor), data.begin(), data.end());
 
-  processor->Enqueue(consumer_count+1, std::make_pair(consumer_count+1, 100));
+  processor->Enqueue(consumer_count + 1, std::make_pair(consumer_count + 1, 100));
 
   for (int j = 0; j < group_count; j++) {
     int start = j * group_size;
@@ -161,19 +161,13 @@ TEST(Unsubscribe, ByGroups)
       consumers[i].validate();
 
       processor->Unsubscribe(i + 1);
-      processor->Enqueue(i+1, std::make_pair(i*10, 10));
+      processor->Enqueue(i + 1, std::make_pair(i * 10, 10));
     }
   }
 
-
-
-
-//checks that old consumers didn`t receive a new value 10
-  for(auto &c:consumers)
+  // checks that old consumers didn`t receive a new value 10
+  for (auto& c : consumers)
     c.validate();
-
-
-
 
   processor.reset();
   std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -189,13 +183,13 @@ TEST(Unsubscribe, DoubleUnsubscribe)
   int consumer_count = 2;
   auto consumers = create_consumers(consumer_count, 0);
 
-  for(auto &c:consumers)
+  for (auto& c : consumers)
     processor->Subscribe(c.id(), &c);
 
-  for(auto &c:consumers)
+  for (auto& c : consumers)
     processor->Unsubscribe(c.id());
 
-  for(auto &c:consumers)
+  for (auto& c : consumers)
     processor->Unsubscribe(c.id());
 }
 
@@ -204,18 +198,17 @@ TEST(Worker, DequeueManual)
   typedef MultiQueue<int, std::pair<int, int>> WORKER;
   int consumer_count = 0;
 
-  std::unique_ptr<WORKER> processor = std::make_unique<WORKER>();;
-  processor->Enqueue(consumer_count+1, std::make_pair(consumer_count+1, 100));
+  std::unique_ptr<WORKER> processor = std::make_unique<WORKER>();
+  ;
+  processor->Enqueue(consumer_count + 1, std::make_pair(consumer_count + 1, 100));
 
-
-  std::optional<std::pair<int,int>> v = processor->Dequeue(consumer_count+1);
+  std::optional<std::pair<int, int>> v = processor->Dequeue(consumer_count + 1);
   EXPECT_EQ(v.has_value(), true);
-  EXPECT_EQ(v.value().first, consumer_count+1);
+  EXPECT_EQ(v.value().first, consumer_count + 1);
   EXPECT_EQ(v.value().second, 100);
 
-  v = processor->Dequeue(consumer_count+1);
+  v = processor->Dequeue(consumer_count + 1);
   EXPECT_EQ(v.has_value(), false);
 
   processor.reset();
-
 }

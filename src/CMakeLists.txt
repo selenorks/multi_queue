@@ -6,11 +6,23 @@ file(GLOB
         SOURCES
         *.cxx
         *.h
-)
+        )
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-add_library(${PROJECT_NAME} STATIC ${SOURCES})
-target_include_directories(${PROJECT_NAME} PUBLIC .)
-target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads)
+add_library(
+        ${PROJECT_NAME}
+        STATIC
+        ${SOURCES}
+)
+target_include_directories(
+        ${PROJECT_NAME}
+        PUBLIC
+        .
+)
+target_link_libraries(
+        ${PROJECT_NAME}
+        PUBLIC
+        Threads::Threads
+)
