@@ -27,41 +27,37 @@ volatile int __attribute__((optimize("O0"))) fibonacci(int N)
 }
 #pragma GCC pop_options
 
-template <bool VALIDATE=false>
+template<bool VALIDATE = false>
 class SimpleConsumer : public IConsumer<int, std::pair<int, int>>
 {
 public:
-  SimpleConsumer(int consumer_id,const int final_score)
+  SimpleConsumer(int consumer_id, const int final_score)
       : consumer_id(consumer_id)
       , final_score(final_score)
   {}
   SimpleConsumer(const SimpleConsumer& other)
       : final_score(other.final_score)
       , consumer_id(other.consumer_id)
-  {
-    m_counter.store(other.m_counter);
-  }
+      , m_counter(other.m_counter)
+  {}
 
-  SimpleConsumer(SimpleConsumer&& other)
-      : final_score(other.final_score)
-      , consumer_id(other.consumer_id)
-  {
-    m_counter.store(other.m_counter);
-  }
-
-  void Consume(int id, const std::pair<int, int>& value) override
+  void Consume(int id, const std::pair<int, int>& value) noexcept override
   {
 #pragma optimize("", off)
     // static load for worker thread
-    fibonacci(30);
+    fibonacci(10);
 #pragma optimize("", on)
 
-    if(VALIDATE) {
+    if (VALIDATE) {
       GTEST_ASSERT_EQ(consumer_id, id);
-      GTEST_ASSERT_EQ(id , value.first);
+      GTEST_ASSERT_EQ(id, value.first);
     }
 
-    auto new_value = m_counter.fetch_add(value.second, std::memory_order_relaxed) + value.second;
+    int new_value;
+    {
+      std::unique_lock lock(mtx);
+      new_value = m_counter += value.second;
+    }
     if (new_value == final_score)
       cv.notify_one();
   }
@@ -71,14 +67,15 @@ public:
     std::unique_lock<std::mutex> lk(mtx);
     cv.wait(lk, [&] { return m_counter == final_score; });
   }
-  void validate() { EXPECT_EQ(m_counter, final_score); }
 
-  int id() const{return consumer_id;}
+  void validate() const { EXPECT_EQ(m_counter, final_score); }
+  int id() const { return consumer_id; }
+
 private:
   int consumer_id;
   int final_score;
 
-  std::atomic<int> m_counter{};
+  int m_counter = 0;
 
   std::mutex mtx;
   std::condition_variable cv;
@@ -86,15 +83,15 @@ private:
 
 template<class WORKER>
 void
-prepare(int enqueue_count, int consumer_count, int& final_score, std::unique_ptr<WORKER>& processor, std::vector<std::pair<int, int>>& data)
+prepare_data(int enqueue_count, int consumer_count, int& final_score, std::unique_ptr<WORKER>& processor, std::vector<std::pair<int, int>>& data)
 {
   processor = std::make_unique<WORKER>();
 
-  final_score = enqueue_count * (enqueue_count - 1) / 2;
+  final_score = enqueue_count;
 
   for (int i = 0; i < consumer_count; i++) {
     for (int j = 0; j < enqueue_count; j++) {
-      data.push_back({ i + 1, j });
+      data.push_back({ i + 1, 1 });
     }
   }
 
@@ -114,16 +111,16 @@ producer_thread(WORKER& processor, std::vector<std::pair<int, int>>::const_itera
   });
 }
 
-template <class Consumer=SimpleConsumer<true>>
+template<class Consumer = SimpleConsumer<true>>
 std::vector<Consumer>
 create_consumers(int consumer_count, int final_score)
 {
   std::vector<Consumer> consumers;
   consumers.reserve(consumer_count);
 
-  for (int i = 0; i < consumer_count; i++) {
+  for (int i = 0; i < consumer_count; i++)
     consumers.emplace_back(i + 1, final_score);
-  }
+
   return consumers;
 }
 
@@ -134,7 +131,7 @@ test_broadcast(int enqueue_count = 2000, int consumer_count = 4, int producer_co
   std::unique_ptr<WORKER> processor;
   std::vector<std::pair<int, int>> data;
   int final_score;
-  prepare<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
+  prepare_data<WORKER>(enqueue_count, consumer_count, final_score, processor, data);
 
   auto consumers = create_consumers<SimpleConsumer<VALIDATE>>(consumer_count, final_score);
 

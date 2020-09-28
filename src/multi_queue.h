@@ -13,21 +13,23 @@
 template<typename Key, typename Value>
 struct IConsumer
 {
-  virtual void Consume(Key id, const Value& value) = 0;
+  virtual void Consume(Key id, const Value& value) noexcept = 0;
 };
 
 class Event
 {
 public:
+  // can throws std::system_error
   void set()
   {
     {
       std::unique_lock<std::mutex> lk(mtx);
       state = true;
     }
-    cv.notify_one();
+    cv.notify_all();
   }
 
+  // can throws std::system_error
   void wait()
   {
     std::unique_lock<std::mutex> lk(mtx);
@@ -38,14 +40,14 @@ public:
 private:
   std::condition_variable cv;
   std::mutex mtx;
-  bool state = false;
+  bool state{ false };
 };
 
 template<class Value, size_t MaxCapacity>
 class Queue
 {
 public:
-  std::optional<Value> dequeue(bool* more_left = nullptr)
+  std::optional<Value> dequeue(size_t* values_left = nullptr)
   {
     std::unique_lock<std::mutex> lk(mtx);
     size_t size = values.size();
@@ -54,12 +56,10 @@ public:
       values.pop_front();
       lk.unlock();
 
-      if (more_left) {
-        *more_left = size != 1;
-        if (size == MaxCapacity) {
-          dequeue_max.set();
-        }
-      }
+      dequeue_cv.notify_one();
+      if (values_left)
+        *values_left = size - 1;
+
       return { front };
     }
     return {};
@@ -71,27 +71,23 @@ public:
       std::unique_lock<std::mutex> lk(mtx);
       if (values.size() < MaxCapacity) {
         values.push_back(value);
-        return;
-      } else {
-        // wait until queue will have enough free space
-        lk.unlock();
-        dequeue_max.wait();
+        break;
       }
+      // wait until queue will have enough free space
+      dequeue_cv.wait(lk, [&]() { return values.size() < MaxCapacity; });
     }
   }
 
 private:
+  std::condition_variable dequeue_cv;
   std::mutex mtx;
   std::list<Value> values;
-  Event dequeue_max;
 };
 
 template<typename Key, typename Value, size_t MaxCapacity = 1000>
 class MultiQueue
 {
 public:
-  constexpr static size_t max_capacity = MaxCapacity;
-
   MultiQueue()
       : running{ true }
       , worker_thread(&MultiQueue::Process, this)
@@ -130,9 +126,10 @@ public:
 
   void Enqueue(Key id, Value value)
   {
+    std::shared_lock consumers_lock(consumers_mtx);
     auto queues_iter = queues.end();
 
-    auto add_value = [&](typename decltype(queues)::iterator iter) {
+    auto push_value = [&](typename decltype(queues)::iterator iter) {
       if (iter != queues.end()) {
         iter->second->enqueue(value);
         return true;
@@ -140,9 +137,9 @@ public:
       return false;
     };
 
-    auto add_to_exist_queue = [&]() {
+    auto enqueue_to_exist_queue = [&]() {
       queues_iter = queues.find(id);
-      return add_value(queues_iter);
+      return push_value(queues_iter);
     };
 
     bool is_inserted = false;
@@ -150,19 +147,20 @@ public:
       // queue ro
       // queue values rw
       std::shared_lock lock{ queues_mtx };
-      is_inserted = add_to_exist_queue();
+      is_inserted = enqueue_to_exist_queue();
     }
     if (!is_inserted) {
       // queue rw
       // queue values rw
       std::unique_lock lock{ queues_mtx };
-      is_inserted = add_to_exist_queue();
+      is_inserted = enqueue_to_exist_queue();
       if (!is_inserted) {
         const auto [iter, success] = queues.emplace(id, std::make_unique<QueueType>());
-        add_value(iter);
+        push_value(iter);
       }
     }
 
+    consumers_lock.unlock();
     notify_new_value();
   }
 
@@ -196,10 +194,12 @@ protected:
       const auto& iter = queues.find(c.first);
       if (iter != queues.end()) {
         // queue values rw
-        bool more_left = false;
+        size_t values_left;
 
-        const std::optional<Value>& front = iter->second->dequeue(&more_left);
-        more_values_available |= more_left;
+        const std::optional<Value>& front = iter->second->dequeue(&values_left);
+        queues_lock.unlock();
+
+        more_values_available |= values_left != 0;
         if (front.has_value())
           c.second->Consume(c.first, front.value());
       }
@@ -235,7 +235,7 @@ class MultiQueueWorkerOld
 {
   enum
   {
-    MaxCapacity = 100000
+    MaxCapacity = 1000000
   };
 
 public:
