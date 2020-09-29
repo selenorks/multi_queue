@@ -2,7 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(unit_tests)
 
-find_package(GTest REQUIRED)
+
+#find_package(GTest REQUIRED)
 
 add_executable(
         ${PROJECT_NAME}
@@ -11,7 +12,7 @@ add_executable(
 )
 target_link_libraries(
         ${PROJECT_NAME}
-        GTest::Main
+        gtest_main
         multi_queue_lib
         benchmark::benchmark)
 
@@ -23,5 +24,6 @@ add_executable(
 target_link_libraries(
         benchmarks
         multi_queue_lib
+        gtest_main
         benchmark::benchmark
 )
