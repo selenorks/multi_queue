@@ -124,7 +124,7 @@ public:
     consumers.erase(id);
   }
 
-  void Enqueue(Key id, Value value)
+  void Enqueue(Key id, const Value& value)
   {
     std::shared_lock consumers_lock(consumers_mtx);
     auto queues_iter = queues.end();
