@@ -1,25 +1,40 @@
 language: cpp
-sudo: required
-dist: focal
-compiler:
-  - gcc
-os:
-  - linux
-addons:
-  apt:
-    packages:
-      - cmake
-      - ninja-build
+jobs:
+  include:
+    - name: Linux
+      dist: focal
+      compiler:
+        - gcc
+      os:
+        - linux
+      addons:
+        apt:
+          packages:
+            - cmake
+            - ninja-build
 
-before_install:
-  - echo $LANG
-  - echo $LC_ALL
-  - ./scripts/dependencies.sh
-script:
-  - bash ./build.sh
-after_success:
-  - cd build
-  - ctest
-env:
-  global:
-    - LANG="en_US.UTF-8"
+      before_install:
+        - echo $LANG
+        - echo $LC_ALL
+        - scripts/dependencies.sh
+      script:
+        - bash scripts/build.sh
+      after_success:
+        - cd build
+        - ctest
+      env:
+        global:
+          - LANG="en_US.UTF-8"
+
+    - name: Windows
+      os: windows
+      language: shell
+      before_install:
+        - choco install cmake ninja
+        - scripts/dependencies.bat
+      script:
+        - scripts/build.sh
+      after_success:
+        - cd build
+        - ctest
+
