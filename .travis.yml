@@ -1,8 +1,7 @@
 language: cpp
-matrix:
+jobs:
   include:
     - name: Linux
-      sudo: required
       dist: focal
       compiler:
         - gcc
@@ -17,9 +16,9 @@ matrix:
       before_install:
         - echo $LANG
         - echo $LC_ALL
-        - ./scripts/dependencies.sh
+        - scripts/dependencies.sh
       script:
-        - bash ./build.sh
+        - bash scripts/build.sh
       after_success:
         - cd build
         - ctest
@@ -30,10 +29,12 @@ matrix:
     - name: Windows
       os: windows
       language: shell
-      before_install: choco install cmake git ninja
-      install: python setup.py install
+      before_install:
+        - choco install cmake ninja
+        - scripts/dependencies.bat
       script:
-        - mkdir build
+        - scripts/build.sh
+      after_success:
         - cd build
-        - cmake .. -GNinja
-        - ninja
+        - ctest
+
