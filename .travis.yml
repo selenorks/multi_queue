@@ -1,25 +1,39 @@
 language: cpp
-sudo: required
-dist: focal
-compiler:
-  - gcc
-os:
-  - linux
-addons:
-  apt:
-    packages:
-      - cmake
-      - ninja-build
+matrix:
+  include:
+    - name: Linux
+      sudo: required
+      dist: focal
+      compiler:
+        - gcc
+      os:
+        - linux
+      addons:
+        apt:
+          packages:
+            - cmake
+            - ninja-build
 
-before_install:
-  - echo $LANG
-  - echo $LC_ALL
-  - ./scripts/dependencies.sh
-script:
-  - bash ./build.sh
-after_success:
-  - cd build
-  - ctest
-env:
-  global:
-    - LANG="en_US.UTF-8"
+      before_install:
+        - echo $LANG
+        - echo $LC_ALL
+        - ./scripts/dependencies.sh
+      script:
+        - bash ./build.sh
+      after_success:
+        - cd build
+        - ctest
+      env:
+        global:
+          - LANG="en_US.UTF-8"
+
+    - name: Windows
+      os: windows
+      language: shell
+      before_install: choco install cmake git ninja
+      install: python setup.py install
+      script:
+        - mkdir build
+        - cd build
+        - cmake .. -GNinja
+        - ninja
