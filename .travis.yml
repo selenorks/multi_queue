@@ -1,18 +1,25 @@
 language: cpp
 sudo: required
-dist: bionic
+dist: focal
 compiler:
   - gcc
 os:
   - linux
+addons:
+  apt:
+    packages:
+      - cmake
+      - ninja-build
+
 before_install:
   - echo $LANG
   - echo $LC_ALL
-  - if [ $TRAVIS_OS_NAME == linux ]; then ./scripts/dependencies.sh; fi
+  - ./scripts/dependencies.sh
 script:
-  - if [ $TRAVIS_OS_NAME == linux ]; then ./build.sh fi
+  - bash ./build.sh
 after_success:
-  - if [ $TRAVIS_OS_NAME == linux ]; then ./build/bin/unit_tests; fi
+  - cd build
+  - ctest
 env:
   global:
     - LANG="en_US.UTF-8"

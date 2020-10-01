@@ -1,11 +1,12 @@
 #include <vector>
 
 #include "test_common.h"
+#include "multi_queue_old.h"
 #include <benchmark/benchmark.h>
 
 enum
 {
-  BENCH_ENQUEUE_COUNT = 4000,
+  BENCH_ENQUEUE_COUNT = 400000,
   BENCH_CONSUMER_COUNT = 4,
   BENCH_PRODUCER_COUNT = 8
 };
