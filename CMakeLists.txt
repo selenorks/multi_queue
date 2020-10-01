@@ -1,11 +1,14 @@
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CONFIGURATION_TYPES "Release;Debug" CACHE STRING  CMAKE_CONFIGURATION_TYPES)
-set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type")
+set(CMAKE_CONFIGURATION_TYPES "RelWithDebInfo;Release;Debug" CACHE STRING  CMAKE_CONFIGURATION_TYPES)
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Build type")
+endif()
 set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS ${CMAKE_CONFIGURATION_TYPES})
 
-
 project(multiqueue)
+
+enable_testing()
 
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -g3")
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g3")
@@ -16,10 +19,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(BENCHMARK_ENABLE_TESTING OFF)
 option(BENCHMARK_ENABLE_INSTALL OFF)
-
-set(GTEST_ROOT "${CMAKE_SOURCE_DIR}/benchmark/googletest" CACHE PATH "Path to googletest")
-
-set(BENCHMARK_ENABLE_TESTING "${CMAKE_SOURCE_DIR}/benchmark/googletest" CACHE PATH "Path to googletest")
 
 add_subdirectory(benchmark/googletest)
 add_subdirectory(benchmark)

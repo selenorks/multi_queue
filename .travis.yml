@@ -18,7 +18,8 @@ before_install:
 script:
   - bash ./build.sh
 after_success:
-  - ./build/bin/unit_tests
+  - cd build
+  - ctest
 env:
   global:
     - LANG="en_US.UTF-8"
