@@ -6,10 +6,10 @@
 #include <functional>
 #include <list>
 #include <map>
+#include <multi_queue.h>
 #include <mutex>
 #include <shared_mutex>
 #include <thread>
-#include <multi_queue.h>
 
 template<typename Key, typename Value>
 class MultiQueueWorkerOld
