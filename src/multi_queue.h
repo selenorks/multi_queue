@@ -43,11 +43,18 @@ private:
   bool state{ false };
 };
 
+template<typename Value>
+struct IQueue
+{
+  virtual std::optional<Value> dequeue() = 0;
+  virtual void enqueue(const Value& value) = 0;
+};
+
 template<class Value, size_t MaxCapacity>
-class Queue
+class Queue : public IQueue<Value>
 {
 public:
-  std::optional<Value> dequeue(size_t* values_left = nullptr)
+  std::optional<Value> dequeue() override
   {
     std::unique_lock<std::mutex> lk(mtx);
     size_t size = values.size();
@@ -57,15 +64,13 @@ public:
       lk.unlock();
 
       dequeue_cv.notify_one();
-      if (values_left)
-        *values_left = size - 1;
 
       return { front };
     }
     return {};
   }
 
-  void enqueue(const Value& value)
+  void enqueue(const Value& value) override
   {
     while (true) {
       std::unique_lock<std::mutex> lk(mtx);
@@ -78,34 +83,40 @@ public:
     }
   }
 
+  size_t size() const
+  {
+    std::unique_lock<std::mutex> lk(mtx);
+    return values.size();
+  }
+
 private:
-  std::condition_variable dequeue_cv;
-  std::mutex mtx;
+  std::condition_variable_any dequeue_cv;
+  mutable std::mutex mtx;
   std::list<Value> values;
 };
 
-template<typename Key, typename Value, size_t MaxCapacity = 1000>
+template<typename Key, typename Value, size_t MaxCapacity = 1000, class QueueType = Queue<Value, MaxCapacity>>
 class MultiQueue
 {
 public:
   MultiQueue()
       : running{ true }
-      , worker_thread(&MultiQueue::Process, this)
+      , worker_thread(&MultiQueue::process, this)
   {}
 
   ~MultiQueue()
   {
-    StopProcessing();
+    stopProcessing();
     worker_thread.join();
   }
 
-  void StopProcessing()
+  void stopProcessing()
   {
     running = false;
     notify_new_value();
   }
 
-  void Subscribe(Key id, IConsumer<Key, Value>* consumer)
+  void subscribe(const Key& id, IConsumer<Key, Value>* consumer)
   {
     // consumers rw
     std::unique_lock lock{ consumers_mtx };
@@ -117,16 +128,15 @@ public:
     }
   }
 
-  void Unsubscribe(Key id)
+  void unsubscribe(const Key& id)
   {
     // consumers rw
     std::unique_lock lock(consumers_mtx);
     consumers.erase(id);
   }
 
-  void Enqueue(Key id, const Value& value)
+  void enqueue(const Key& id, const Value& value)
   {
-    std::shared_lock consumers_lock(consumers_mtx);
     auto queues_iter = queues.end();
 
     auto push_value = [&](typename decltype(queues)::iterator iter) {
@@ -149,6 +159,7 @@ public:
       std::shared_lock lock{ queues_mtx };
       is_inserted = enqueue_to_exist_queue();
     }
+
     if (!is_inserted) {
       // queue rw
       // queue values rw
@@ -160,11 +171,10 @@ public:
       }
     }
 
-    consumers_lock.unlock();
     notify_new_value();
   }
 
-  std::optional<Value> Dequeue(Key id)
+  std::optional<Value> dequeue(const Key& id)
   {
     // queue ro
     // queue values rw
@@ -191,23 +201,33 @@ protected:
     for (const auto& c : consumers) {
       std::shared_lock queues_lock{ queues_mtx };
       // queue ro
-      const auto& iter = queues.find(c.first);
+      auto iter = queues.find(c.first);
       if (iter != queues.end()) {
         // queue values rw
-        size_t values_left;
+        const std::optional<Value>& front = iter->second->dequeue();
 
-        const std::optional<Value>& front = iter->second->dequeue(&values_left);
         queues_lock.unlock();
+        if (front.has_value()) {
 
-        more_values_available |= values_left != 0;
-        if (front.has_value())
           c.second->Consume(c.first, front.value());
+        } else {
+          std::unique_lock queues_lock(queues_mtx, std::defer_lock);
+          if (queues_lock.try_lock()) {
+            auto iter = queues.find(c.first);
+            if (!iter->second->size()) {
+              queues.erase(iter);
+              continue;
+            }
+          }
+        }
+
+        more_values_available = true;
       }
     }
     return more_values_available;
   }
 
-  void Process()
+  void process()
   {
     while (running) {
       while (consume_once()) {
@@ -220,7 +240,6 @@ protected:
   std::shared_mutex consumers_mtx;
   std::map<Key, IConsumer<Key, Value>*> consumers;
 
-  typedef Queue<Value, MaxCapacity> QueueType;
   std::shared_mutex queues_mtx;
   std::map<Key, std::unique_ptr<QueueType>> queues;
 
