@@ -40,7 +40,7 @@ TEST_P(QueueWorkerTest, QueueOverflow)
   auto consumers = create_consumers(consumer_count, final_score);
 
   for (int i = 0; i < consumer_count; i++) {
-    processor->Subscribe(i + 1, &consumers[i]);
+    processor->subscribe(i + 1, &consumers[i]);
   }
   std::vector<std::unique_ptr<std::thread>> producers(producer_count);
 
@@ -74,7 +74,7 @@ TEST(Subscribing, OneByOne)
   producer_thread<MultiQueueBaseType>(std::ref(*processor), data.begin(), data.end());
 
   for (int i = 0; i < consumer_count; i++) {
-    processor->Subscribe(i + 1, &consumers[i]);
+    processor->subscribe(i + 1, &consumers[i]);
     consumers[i].wait();
     consumers[i].validate();
   }
@@ -109,7 +109,7 @@ TEST(Subscribing, ByGroups)
     int start = j * group_size;
     int stop = (j + 1) * group_size;
     for (int i = start; i < stop; i++) {
-      processor->Subscribe(i + 1, &consumers[i]);
+      processor->subscribe(i + 1, &consumers[i]);
     }
 
     for (int i = start; i < stop; i++) {
@@ -124,7 +124,7 @@ TEST(Subscribing, ByGroups)
     c.validate();
 }
 
-TEST(Unsubscribe, ByGroups)
+TEST(unsubscribe, ByGroups)
 {
   int enqueue_count = 300;
 
@@ -145,21 +145,21 @@ TEST(Unsubscribe, ByGroups)
 
   producer_thread<MultiQueueBaseType>(std::ref(*processor), data.begin(), data.end());
 
-  processor->Enqueue(consumer_count + 1, std::make_pair(consumer_count + 1, 100));
+  processor->enqueue(consumer_count + 1, std::make_pair(consumer_count + 1, 100));
 
   for (int j = 0; j < group_count; j++) {
     int start = j * group_size;
     int stop = (j + 1) * group_size;
     for (int i = start; i < stop; i++) {
-      processor->Subscribe(i + 1, &consumers[i]);
+      processor->subscribe(i + 1, &consumers[i]);
     }
 
     for (int i = start; i < stop; i++) {
       consumers[i].wait();
       consumers[i].validate();
 
-      processor->Unsubscribe(i + 1);
-      processor->Enqueue(i + 1, std::make_pair(i * 10, 10));
+      processor->unsubscribe(i + 1);
+      processor->enqueue(i + 1, std::make_pair(i * 10, 10));
     }
   }
 
@@ -173,7 +173,7 @@ TEST(Unsubscribe, ByGroups)
     c.validate();
 }
 
-TEST(Unsubscribe, DoubleUnsubscribe)
+TEST(unsubscribe, DoubleUnsubscribe)
 {
   std::unique_ptr<MultiQueueBaseType> processor = std::make_unique<MultiQueueBaseType>();
 
@@ -181,13 +181,13 @@ TEST(Unsubscribe, DoubleUnsubscribe)
   auto consumers = create_consumers(consumer_count, 0);
 
   for (auto& c : consumers)
-    processor->Subscribe(c.id(), &c);
+    processor->subscribe(c.id(), &c);
 
   for (auto& c : consumers)
-    processor->Unsubscribe(c.id());
+    processor->unsubscribe(c.id());
 
   for (auto& c : consumers)
-    processor->Unsubscribe(c.id());
+    processor->unsubscribe(c.id());
 }
 
 TEST(Worker, DequeueManual)
@@ -197,13 +197,13 @@ TEST(Worker, DequeueManual)
   MultiQueueBaseType processor;
 
   int id = 0;
-  processor.Enqueue(id, std::make_pair(id, 100));
+  processor.enqueue(id, std::make_pair(id, 100));
 
-  std::optional<std::pair<int, int>> v = processor.Dequeue(id);
+  std::optional<std::pair<int, int>> v = processor.dequeue(id);
   EXPECT_EQ(v.has_value(), true);
   EXPECT_EQ(v.value().first, id);
   EXPECT_EQ(v.value().second, 100);
 
-  v = processor.Dequeue(consumer_count + 1);
+  v = processor.dequeue(consumer_count + 1);
   EXPECT_EQ(v.has_value(), false);
 }

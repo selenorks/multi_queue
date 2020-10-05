@@ -19,7 +19,7 @@
 
 #pragma GCC push_options
 #pragma GCC optimize("O0")
-volatile int __attribute__((optimize("O0"))) fibonacci(int N)
+int __attribute__((optimize("O0"))) fibonacci(int N)
 {
   if (N == 1 || N == 2)
     return 1;
@@ -107,7 +107,7 @@ producer_thread(WORKER& processor, std::vector<std::pair<int, int>>::const_itera
   std::for_each(start, end, [&](const std::pair<int, int>& p) {
     auto id = p.first;
     auto value = p.second;
-    processor.Enqueue(id, std::make_pair(id, value));
+    processor.enqueue(id, std::make_pair(id, value));
   });
 }
 
@@ -136,7 +136,7 @@ test_broadcast(int enqueue_count = 2000, int consumer_count = 4, int producer_co
   auto consumers = create_consumers<SimpleConsumer<VALIDATE>>(consumer_count, final_score);
 
   for (int i = 0; i < consumer_count; i++) {
-    processor->Subscribe(i + 1, &consumers[i]);
+    processor->subscribe(i + 1, &consumers[i]);
   }
   std::vector<std::unique_ptr<std::thread>> producers(producer_count);
 

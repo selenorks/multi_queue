@@ -1,7 +1,6 @@
 #include <vector>
 
 #include "test_common.h"
-#include "multi_queue_old.h"
 #include <benchmark/benchmark.h>
 
 enum
@@ -20,13 +19,6 @@ multi_queue_one_thread_producer_new(benchmark::State& state)
   }
 }
 
-static void
-multi_queue_one_thread_producer_old(benchmark::State& state)
-{
-  for (auto _ : state) {
-    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, false, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
-  }
-}
 
 static void
 multi_queue_multi_thread_producer_new(benchmark::State& state)
@@ -36,18 +28,8 @@ multi_queue_multi_thread_producer_new(benchmark::State& state)
   }
 }
 
-static void
-multi_queue_multi_thread_producer_old(benchmark::State& state)
-{
-  for (auto _ : state) {
-    test_broadcast<MultiQueueWorkerOld<int, std::pair<int, int>>, true, false>(BENCH_ENQUEUE_COUNT, BENCH_CONSUMER_COUNT, BENCH_PRODUCER_COUNT);
-  }
-}
 
 BENCHMARK(multi_queue_one_thread_producer_new);
-BENCHMARK(multi_queue_one_thread_producer_old);
-
 BENCHMARK(multi_queue_multi_thread_producer_new);
-BENCHMARK(multi_queue_multi_thread_producer_old);
 
 BENCHMARK_MAIN();
