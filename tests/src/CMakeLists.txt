@@ -18,7 +18,7 @@ target_link_libraries(
 add_executable(
         benchmarks
         benchmarks.cxx
-        multi_queue_old.h)
+)
 
 target_link_libraries(
         benchmarks
